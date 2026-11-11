@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ගුරු කාලසටහන - Timetable & Alarm</title>
+
+  <!-- PWA Meta Tags -->
+  <meta name="theme-color" content="#1e293b">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="ගුරු කාලසටහන">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2997/2997295.png">
+
+  <style>
+    * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background-color: #f1f5f9; margin: 0; padding: 15px; }
+    .container { max-width: 1050px; margin: 0 auto; background: white; padding: 20px; border-radius: 14px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); }
+    h2 { color: #1e293b; text-align: center; margin: 0 0 15px 0; font-size: 22px; }
+    
+    /* Stop Alarm Button */
+    #stopAlarmBtn {
+      display: none;
+      width: 100%;
+      background: #dc2626;
+      color: white;
+      padding: 16px;
+      font-size: 18px;
+      font-weight: bold;
+      border: none;
+      border-radius: 10px;
+      margin-bottom: 15px;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(220, 38, 38, 0.4);
+      animation: pulse 1s infinite alternate;
+    }
+    @keyframes pulse {
+      from { transform: scale(1); }
+      to { transform: scale(1.02); }
+    }
+
+    /* PWA Install Banner */
+    #pwaInstallBanner {
+      display: none;
+      background: #2563eb;
+      color: white;
+      padding: 12px 16px;
+      border-radius: 10px;
+      margin-bottom: 15px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .btn-install {
+      background: white;
+      color: #2563eb;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    /* Top Bar */
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      padding: 12px 16px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .date-info { font-weight: 700; color: #1e293b; font-size: 15px; }
+    
+    .actions-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    /* Holiday Toggle */
+    .holiday-toggle-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #fff;
+      padding: 6px 12px;
+      border-radius: 8px;
+      border: 1px solid #cbd5e1;
+      font-size: 13px;
+      font-weight: 600;
+      color: #475569;
+    }
+    .holiday-toggle-wrap input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+      accent-color: #dc2626;
+    }
+
+    .btn-perm { 
+      background: #0f172a; 
+      color: white; 
+      border: none; 
+      padding: 8px 14px; 
+      border-radius: 8px; 
+      cursor: pointer; 
+      font-weight: 600; 
+      font-size: 13px; 
+    }
+    
+    /* Timetable Grid */
+    .table-wrapper { overflow-x: auto; border-radius: 10px; border: 1px solid #cbd5e1; }
+    table { width: 100%; border-collapse: collapse; min-width: 650px; background: white; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px 5px; text-align: center; }
+    th { background-color: #0f172a; color: white; font-weight: 600; font-size: 13px; }
+    .period-col { background-color: #f8fafc; font-weight: bold; width: 110px; font-size: 11px; color: #334155; }
+    .interval-row td { background-color: #fef3c7; font-weight: bold; color: #b45309; font-size: 13px; padding: 10px; }
+    
+    /* Dynamic Colorful Cells */
+    .cell {
+      cursor: pointer;
+      min-height: 48px;
+      border-radius: 6px;
+      padding: 5px 3px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      transition: transform 0.15s;
+    }
+    .cell:hover { transform: scale(0.98); }
+    .cell-empty { border: 2px dashed #cbd5e1; color: #94a3b8; font-size: 18px; }
+
+    /* Class Color Themes */
+    .color-g6  { background-color: #fce7f3; border-left: 4px solid #db2777; color: #831843; }
+    .color-g7  { background-color: #ffedd5; border-left: 4px solid #ea580c; color: #7c2d12; }
+    .color-g8  { background-color: #fef9c3; border-left: 4px solid #ca8a04; color: #713f12; }
+    .color-g9  { background-color: #dcfce7; border-left: 4px solid #16a34a; color: #14532d; }
+    .color-g10 { background-color: #e0f2fe; border-left: 4px solid #0284c7; color: #0c4a6e; }
+    .color-g11 { background-color: #ede9fe; border-left: 4px solid #7c3aed; color: #4c1d95; }
+    .color-al  { background-color: #fee2e2; border-left: 4px solid #dc2626; color: #7f1d1d; }
+    .color-def { background-color: #f1f5f9; border-left: 4px solid #64748b; color: #1e293b; }
+
+    .cell-subject { font-weight: bold; font-size: 12px; }
+    .cell-grade { font-size: 11px; margin-top: 2px; font-weight: 600; opacity: 0.85; }
+    .today-col { background-color: #f8fafc; border-left: 2px solid #2563eb !important; border-right: 2px solid #2563eb !important; }
+
+    .legend { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 15px; font-size: 12px; }
+    .legend-item { display: flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: 6px; background: #fff; border: 1px solid #e2e8f0; font-weight: 500; }
+    .legend-box { width: 12px; height: 12px; border-radius: 3px; }
+
+    /* Footer Credits */
+    .app-footer {
+      margin-top: 25px;
+      padding-top: 15px;
+      border-top: 1px solid #e2e8f0;
+      text-align: center;
+      font-size: 13px;
+      color: #64748b;
+      font-weight: 500;
+    }
+    .app-footer a {
+      color: #2563eb;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .app-footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h2>🔔 ගුරු කාලසටහන (Timetable & Bell)</h2>
+
+  <!-- PWA Install Banner -->
+  <div id="pwaInstallBanner">
+    <span>📲 මෙම App එක ඔබගේ දුරකථනයට ස්ථාපනය කරගන්න (Install)</span>
+    <button class="btn-install" id="installBtn">Install App</button>
+  </div>
+
+  <!-- Stop Alarm Button -->
+  <button id="stopAlarmBtn" onclick="stopContinuousAlarm()">
+    🛑 නාදවන ඇඟවීම නවත්වන්න (Stop Alarm)
+  </button>
+
+  <div class="top-bar">
+    <div class="date-info" id="todayIndicator">දිනය පරීක්ෂා වෙමින්...</div>
+    
+    <div class="actions-group">
+      <!-- Holiday Alarm Silencer Toggle -->
+      <label class="holiday-toggle-wrap">
+        <input type="checkbox" id="holidayToggle" onchange="toggleHolidayMode(this.checked)">
+        <span>🏖️ අද නිවාඩු (Alarm Off)</span>
+      </label>
+
+      <button class="btn-perm" onclick="enableAudioAndAlerts()">🔊 Sound & Alert සක්‍රීය කරන්න</button>
+    </div>
+  </div>
+
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 120px;">කාලය / පීරියඩ්</th>
+          <th id="th-1">සඳුදා</th>
+          <th id="th-2">අඟහරුවාදා</th>
+          <th id="th-3">බදාදා</th>
+          <th id="th-4">බ්‍රහස්පතින්දා</th>
+          <th id="th-5">සිකුරාදා</th>
+        </tr>
+      </thead>
+      <tbody id="timetableGridBody"></tbody>
+    </table>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-box" style="background:#db2777;"></div> Gr 6</div>
+    <div class="legend-item"><div class="legend-box" style="background:#ea580c;"></div> Gr 7</div>
+    <div class="legend-item"><div class="legend-box" style="background:#ca8a04;"></div> Gr 8</div>
+    <div class="legend-item"><div class="legend-box" style="background:#16a34a;"></div> Gr 9</div>
+    <div class="legend-item"><div class="legend-box" style="background:#0284c7;"></div> Gr 10</div>
+    <div class="legend-item"><div class="legend-box" style="background:#7c3aed;"></div> Gr 11</div>
+    <div class="legend-item"><div class="legend-box" style="background:#dc2626;"></div> A/L (Gr 12/13)</div>
+  </div>
+
+  <!-- Developer Footer -->
+  <footer class="app-footer">
+    සැකසීම:- <b>එම් ඒ ආර් පසන්</b> &nbsp;|&nbsp; දුරකථන අංකය:- <a href="tel:0706993367">0706993367</a>
+  </footer>
+</div>
+
+<script>
+  // Periods Config
+  const periodsConfig = [
+    { period: 1, name: "1 වන පීරියඩ්", start: "07:50", end: "08:30" },
+    { period: 2, name: "2 වන පීරියඩ්", start: "08:30", end: "09:10" },
+    { period: 3, name: "3 වන පීරියඩ්", start: "09:10", end: "09:50" },
+    { period: 4, name: "4 වන පීරියඩ්", start: "09:50", end: "10:30" },
+    { isInterval: true, name: "විවේකය (Interval)", start: "10:30", end: "10:50" },
+    { period: 5, name: "5 වන පීරියඩ්", start: "10:50", end: "11:30" },
+    { period: 6, name: "6 වන පීරියඩ්", start: "11:30", end: "12:10" },
+    { period: 7, name: "7 වන පීරියඩ්", start: "12:10", end: "12:50" },
+    { period: 8, name: "8 වන පීරියඩ්", start: "12:50", end: "13:30" },
+  ];
+
+  // Unique per device (saved in LocalStorage)
+  let schedule = JSON.parse(localStorage.getItem('myPwaTimetable')) || {};
+
+  const notifiedKeys = new Set();
+  let audioCtx = null;
+  let beepInterval = null;
+
+  // Holiday Mode Status
+  const todayDateKey = new Date().toISOString().split('T')[0];
+  let isHoliday = localStorage.getItem('holiday_' + todayDateKey) === 'true';
+  document.getElementById('holidayToggle').checked = isHoliday;
+
+  function toggleHolidayMode(status) {
+    isHoliday = status;
+    localStorage.setItem('holiday_' + todayDateKey, status ? 'true' : 'false');
+    if (status) {
+      stopContinuousAlarm();
+      alert("අද දින නිවාඩු දිනයක් ලෙස සටහන් විය. Alarms ක්‍රියාවිරහිතයි.");
+    } else {
+      alert("Alarms නැවත සක්‍රීය කෙරුණි.");
+    }
+  }
+
+  function getColorClass(gradeStr) {
+    if (!gradeStr) return 'color-def';
+    const text = gradeStr.toLowerCase();
+    if (text.includes('12') || text.includes('13') || text.includes('a/l')) return 'color-al';
+    if (text.includes('11')) return 'color-g11';
+    if (text.includes('10')) return 'color-g10';
+    if (text.includes('9')) return 'color-g9';
+    if (text.includes('8')) return 'color-g8';
+    if (text.includes('7')) return 'color-g7';
+    if (text.includes('6')) return 'color-g6';
+    return 'color-def';
+  }
+
+  function buildGrid() {
+    const tbody = document.getElementById('timetableGridBody');
+    tbody.innerHTML = '';
+    const today = new Date().getDay();
+
+    if (today >= 1 && today <= 5) {
+      const th = document.getElementById(`th-${today}`);
+      if (th) th.style.backgroundColor = '#2563eb';
+    }
+
+    periodsConfig.forEach(p => {
+      const tr = document.createElement('tr');
+      if (p.isInterval) {
+        tr.className = 'interval-row';
+        tr.innerHTML = `<td class="period-col">${p.start} - ${p.end}</td><td colspan="5">${p.name}</td>`;
+      } else {
+        let cellsHtml = `<td class="period-col">${p.name}<br><small style="color:#64748b;">${p.start} - ${p.end}</small></td>`;
+        for (let day = 1; day <= 5; day++) {
+          const key = `${day}-${p.period}`;
+          const item = schedule[key];
+          const isToday = (day === today) ? 'today-col' : '';
+          
+          if (item && item.subject) {
+            const colorClass = getColorClass(item.grade);
+            cellsHtml += `<td class="${isToday}">
+              <div class="cell ${colorClass}" onclick="editCell(${day}, ${p.period})">
+                <div class="cell-subject">${item.subject}</div>
+                <div class="cell-grade">${item.grade}</div>
+              </div>
+            </td>`;
+          } else {
+            cellsHtml += `<td class="${isToday}">
+              <div class="cell cell-empty" onclick="editCell(${day}, ${p.period})">+</div>
+            </td>`;
+          }
+        }
+        tr.innerHTML = cellsHtml;
+      }
+      tbody.appendChild(tr);
+    });
+  }
+
+  function editCell(day, period) {
+    const key = `${day}-${period}`;
+    const current = schedule[key] || { subject: '', grade: '' };
+    const subject = prompt("විෂය ඇතුළත් කරන්න (හිස්ව තැබුවහොත් මැකී යයි):", current.subject);
+    if (subject === null) return;
+    
+    if (subject.trim() === '') {
+      delete schedule[key];
+    } else {
+      const grade = prompt("පන්තිය ඇතුළත් කරන්න (උදා: Grade 10-A):", current.grade) || '';
+      schedule[key] = { subject: subject.trim(), grade: grade.trim() };
+    }
+    localStorage.setItem('myPwaTimetable', JSON.stringify(schedule));
+    buildGrid();
+  }
+
+  function startContinuousAlarm(frequency = 900) {
+    if (isHoliday) return;
+    if (beepInterval) return;
+    
+    document.getElementById('stopAlarmBtn').style.display = 'block';
+
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    beepInterval = setInterval(() => {
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.4);
+    }, 1000);
+  }
+
+  function stopContinuousAlarm() {
+    if (beepInterval) {
+      clearInterval(beepInterval);
+      beepInterval = null;
+    }
+    document.getElementById('stopAlarmBtn').style.display = 'none';
+  }
+
+  function enableAudioAndAlerts() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+
+    if ("Notification" in window) {
+      Notification.requestPermission().then(res => {
+        if (res === "granted") {
+          alert("ශබ්ද හා දැනුම්දීම් (Notifications) සාර්ථකව සක්‍රීය කෙරුණි!");
+        } else {
+          alert("ශබ්ද ක්‍රියාත්මක කර ඇත.");
+        }
+      });
+    } else {
+      alert("ශබ්ද ක්‍රියාත්මක කර ඇත.");
+    }
+  }
+
+  function checkAlerts() {
+    if (isHoliday) return;
+
+    const now = new Date();
+    const currentDay = now.getDay();
+    if (currentDay < 1 || currentDay > 5) return;
+
+    const currentTotalMinutes = (now.getHours() * 60) + now.getMinutes();
+    const dateStr = now.toDateString();
+
+    periodsConfig.forEach(p => {
+      if (p.isInterval) return;
+      const key = `${currentDay}-${p.period}`;
+      const item = schedule[key];
+
+      if (item && item.subject) {
+        const [startH, startM] = p.start.split(':').map(Number);
+        const [endH, endM] = p.end.split(':').map(Number);
+        
+        const periodStartMinutes = (startH * 60) + startM;
+        const periodEndMinutes = (endH * 60) + endM;
+
+        // 1. පීරියඩ් එක ආරම්භ වීමට විනාඩි 5කට පෙර (Pre-start)
+        const diffStart = periodStartMinutes - currentTotalMinutes;
+        const startAlertKey = `start-${key}-${dateStr}`;
+
+        if (diffStart === 5 && !notifiedKeys.has(startAlertKey)) {
+          startContinuousAlarm(950);
+          if ("Notification" in window && Notification.permission === "granted") {
+            new Notification(`🔔 මීළඟ පීරියඩ් එක: ${item.subject}`, {
+              body: `${p.name} (${p.start}) ආරම්භ වීමට තව විනාඩි 5 යි! ${item.grade} පන්තියට සූදානම් වන්න.`,
+              icon: 'https://cdn-icons-png.flaticon.com/512/2997/2997295.png'
+            });
+          }
+          notifiedKeys.add(startAlertKey);
+        }
+
+        // 2. පීරියඩ් එක අවසන් වීමට විනාඩි 5කට පෙර (Pre-end)
+        const diffEnd = periodEndMinutes - currentTotalMinutes;
+        const endAlertKey = `end-${key}-${dateStr}`;
+
+        if (diffEnd === 5 && !notifiedKeys.has(endAlertKey)) {
+          startContinuousAlarm(750);
+          if ("Notification" in window && Notification.permission === "granted") {
+            new Notification(`⏳ පීරියඩ් එක අවසන් වෙමින් පවතී`, {
+              body: `${item.grade} හි ${item.subject} පීරියඩ් එක අවසන් වීමට තව විනාඩි 5 යි (${p.end})! පාඩම සමාප්ත කිරීමට සූදානම් වන්න.`,
+              icon: 'https://cdn-icons-png.flaticon.com/512/2997/2997295.png'
+            });
+          }
+          notifiedKeys.add(endAlertKey);
+        }
+      }
+    });
+  }
+
+  // Display Today's day name
+  const daysArr = ["ඉරිදා", "සඳුදා", "අඟහරුවාදා", "බදාදා", "බ්‍රහස්පතින්දා", "සිකුරාදා", "සෙනසුරාදා"];
+  document.getElementById('todayIndicator').innerText = `අද දිනය: ${daysArr[new Date().getDay()]}`;
+
+  buildGrid();
+  setInterval(checkAlerts, 15000);
+
+  // PWA Service Worker & Install Prompt Registration
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(err => console.log('SW Registration failed:', err));
+    });
+  }
+
+  let deferredPrompt;
+  const pwaInstallBanner = document.getElementById('pwaInstallBanner');
+  const installBtn = document.getElementById('installBtn');
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    pwaInstallBanner.style.display = 'flex';
+  });
+
+  installBtn.addEventListener('click', async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        pwaInstallBanner.style.display = 'none';
+      }
+      deferredPrompt = null;
+    }
+  });
+</script>
+</body>
+</html>
